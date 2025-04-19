@@ -33,5 +33,6 @@ Propose des articles autour de l’alimentation, des recettes, des conseils sant
 Service Réclamation
 Rôle : Gère les opérations liées aux réclamations . Utilise MySQL pour stocker les données. chaque reclamation ajouté un mail envoyé au admin
 
+
 Service  Offres et Promotions
 Crée et planifie des réductions, codes promo ou ventes flash sur certains produits ou catégories. Attire les clients avec des offres personnalisées et augmente les ventes durant les périodes stratégiques
