@@ -1,0 +1,243 @@
+version: '3.8'
+
+services:
+
+  discovery-service:
+    container_name: discovery-service
+    build:
+      context: ./eureka
+      dockerfile: Dockerfile
+    image: ouday2025/discovery-service:latest
+    ports:
+      - "8761:8761"
+    hostname: eureka
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-service:8761/eureka/
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - app-network
+
+  mysql-container:
+    container_name: mysql-container-offre
+    image: mysql:5.6
+    environment:
+      - MYSQL_ROOT_PASSWORD=your_secure_password
+    ports:
+      - "3306:3306"
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - ./mysql-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  keycloak:
+    container_name: microservice-keycloak-1
+    build:
+      context: ./keycloak
+      dockerfile: Dockerfile
+    image: ouday2025/microservice-keycloak:latest
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - DB_VENDOR=mysql
+      - DB_ADDR=mysql-container-offre
+      - DB_PORT=3306
+      - DB_DATABASE=KeycloakDB
+      - DB_USER=root
+      - DB_PASSWORD=your_secure_password
+      - KEYCLOAK_JDBC_PARAMS=useSSL=false&allowPublicKeyRetrieval=true
+      - KC_HOSTNAME_STRICT=false
+      - KEYCLOAK_FRONTEND_URL=http://keycloak:8080
+    ports:
+      - "8180:8080"
+    command: start-dev --import-realm
+    depends_on:
+      mysql-container:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/realms/myrealm/.well-known/openid-configuration"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - ./keycloak/export:/opt/keycloak/data/import
+    networks:
+      - app-network
+
+  gateway-service:
+    container_name: gateway-service
+    build:
+      context: ./Gateway
+      dockerfile: Dockerfile
+    image: ouday2025/gateway-service:latest
+    ports:
+      - "8093:8093"
+    hostname: gateway
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-service:8761/eureka/
+      - SPRING_PROFILES_ACTIVE=default
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  offre-promotion-service:
+    container_name: offre-promotion-service
+    build:
+      context: ./offre_promotion
+      dockerfile: Dockerfile
+    image: ouday2025/offre-promotion-service:latest
+    ports:
+      - "8085:8088"
+    hostname: offre-promotion
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-container-offre:3306/OffrePromotion?autoReconnect=true&useSSL=false
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=your_secure_password
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-service:8761/eureka/
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      mysql-container:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  stock-service:
+    container_name: stock-service
+    build:
+      context: ./GESTIONSTOCK
+    image: halimtrabelsi/stock-service:latest
+    ports:
+      - "8089:8089"
+    hostname: stock-service
+    environment:
+      - SPRING_DATA_MONGODB_URI=mongodb://mongo:27017/GestionStock_db
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-service:8761/eureka/
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      mongo:
+        condition: service_started
+    networks:
+      - app-network
+
+  reclamation:
+    container_name: reclamation
+    build:
+      context: ./Reclamation
+      dockerfile: Dockerfile
+    image: ouday2025/reclamation:latest
+    ports:
+      - "8090:8090"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-container-offre:3306/OffrePromotion?autoReconnect=true&useSSL=false
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-service:8761/eureka/
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      mysql-container:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  produit-service:
+    container_name: produit-service
+    build:
+      context: ./backproduit
+      dockerfile: Dockerfile
+    image: ouday2025/produit-service:latest
+    ports:
+      - "8091:8091"
+    hostname: backproduit
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-container-offre:3306/OffrePromotion?autoReconnect=true&useSSL=false
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=your_secure_password
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-service:8761/eureka/
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      mysql-container:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  blog-service:
+    container_name: blog-service
+    build:
+      context: ./Blog
+      dockerfile: Dockerfile
+    image: ouday2025/blog-service:latest
+    ports:
+      - "8092:8092"
+    hostname: Blog
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-service:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=MySQL
+      - SPRING_DATASOURCE_USERNAME=sa
+      - SPRING_DATASOURCE_PASSWORD=password
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.h2.Driver
+      - SPRING_H2_CONSOLE_ENABLED=true
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  mongo:
+    container_name: mongo
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - app-network
+
+  node-express:
+    container_name: couponscadeaux_app
+    build:
+      context: ./Node_Ecomerce
+      dockerfile: Dockerfile
+    image: couponscadeaux_app:latest
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGO_URL=mongodb://mongo:27017/ecommerce
+    depends_on:
+      - mongo
+    volumes:
+      - .:/app
+    networks:
+      - app-network
+
+volumes:
+  mongo-data:
+
+networks:
+  app-network:
+    driver: bridge

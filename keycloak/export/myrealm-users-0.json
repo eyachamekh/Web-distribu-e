@@ -1,0 +1,24 @@
+{
+  "realm" : "myrealm",
+  "users" : [ {
+    "id" : "578dc50e-bb9b-4d7a-bf02-2d5f1bbc5083",
+    "createdTimestamp" : 1743898696125,
+    "username" : "testuser",
+    "enabled" : true,
+    "totp" : false,
+    "emailVerified" : false,
+    "credentials" : [ {
+      "id" : "2f143323-a4ad-4cd6-be5d-a0cb7f932e11",
+      "type" : "password",
+      "userLabel" : "My password",
+      "createdDate" : 1743898709978,
+      "secretData" : "{\"value\":\"hUJ3DIWG2yBsFk1AR0I5vU0JLDUQGxzHUI/eEsPDMV4=\",\"salt\":\"pX2epYhBZxvJbI8MPIlkIA==\",\"additionalParameters\":{}}",
+      "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
+    } ],
+    "disableableCredentialTypes" : [ ],
+    "requiredActions" : [ "UPDATE_PASSWORD" ],
+    "realmRoles" : [ "default-roles-myrealm" ],
+    "notBefore" : 0,
+    "groups" : [ ]
+  } ]
+}
